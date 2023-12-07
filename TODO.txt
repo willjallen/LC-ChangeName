@@ -1,0 +1,2 @@
+- Changed names are forgotten when a player exits and rejoins
+- Changed names are not passed to new players joining for the first time 
