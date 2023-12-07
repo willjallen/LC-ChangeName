@@ -2,7 +2,7 @@
 using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
-
+using LC_API.ServerAPI;
 namespace ChangeName
 {
     [BepInPlugin(GUID, NAME, VERSION)]
@@ -22,6 +22,8 @@ namespace ChangeName
 
             var harmony = new Harmony(GUID);
             harmony.PatchAll();
+
+            Networking.GetString += NameDatabase.NDNetGetString;
 
             LogInfo("Loading Complete!");
         }

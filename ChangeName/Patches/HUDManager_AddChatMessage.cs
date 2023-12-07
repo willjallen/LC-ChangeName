@@ -1,27 +1,32 @@
 ﻿using GameNetcodeStuff;
 using HarmonyLib;
+using ChangeName;
 
 namespace ChangeName.Patches
 {
     [HarmonyPatch(typeof(HUDManager), "AddChatMessage")]
     internal class HUDManager_AddChatMessage
     {
+        private static string lastChatMessage = "";
         static void Postfix(HUDManager __instance, string chatMessage, string nameOfUserWhoTyped)
         {
-            ChangeNamePlugin.LogInfo(chatMessage);
-            ChangeNamePlugin.LogInfo(nameOfUserWhoTyped);
+            if (lastChatMessage == chatMessage){
+                return;
+            }
+            lastChatMessage = chatMessage;
+            
+            ChangeNamePlugin.LogDebug(chatMessage);
+
             if(chatMessage.Contains("!name")){
                 string extractedName = chatMessage.Substring(chatMessage.IndexOf("!name") + "!name".Length).Trim();
-                ChangeNamePlugin.LogInfo(extractedName);
-
-                foreach (PlayerControllerB player in __instance.playersManager.allPlayerScripts)
-                {
-                    if(player.playerUsername == nameOfUserWhoTyped){
-                        player.playerUsername = extractedName;
-                        player.usernameBillboardText.text = extractedName;
-                    }
+                // Check for duplicate names
+                if(NameDatabase.HasName(extractedName)){
+                  __instance.AddTextToChatOnServer("Duplicate names are not allowed!", -1);                      
+                } else if (__instance.playersManager.IsHost){
+                    NameDatabase.UpdateName(nameOfUserWhoTyped, extractedName);
+                    NameDatabase.shouldSendNames = true; 
+                    NameDatabase.shouldUpdateNames = true; // Since host will not get broadcast
                 }
-
             }
         }
     }
