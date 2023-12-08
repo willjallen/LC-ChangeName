@@ -1,10 +1,10 @@
 {
     "name": "ChangeName",
-    "version_number": "0.1.0",
+    "version_number": "1.0.0",
     "website_url": "https://github.com/willjallen/LC-ChangeName",
     "description": "Allows you to change in-game names.",
     "dependencies": [
         "BepInEx-BepInExPack-5.4.2100",
-        "2018-LC_API-1.2.1"
+        "2018-LC_API-2.1.1"
     ]
 }

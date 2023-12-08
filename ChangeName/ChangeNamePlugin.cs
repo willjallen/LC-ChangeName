@@ -10,7 +10,7 @@ namespace ChangeName
     {
         private const string GUID = "me.wallen.changename";
         private const string NAME = "Change Player Names";
-        private const string VERSION = "0.1.0";
+        private const string VERSION = "1.0.0";
 
         private static ChangeNamePlugin Instance;
 
