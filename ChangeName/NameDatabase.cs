@@ -15,7 +15,9 @@ namespace ChangeName
         internal static bool shouldUpdateNames = false;
         internal static bool shouldSendNames = false;
 
-        public const string SIG_UPDATE_NAMES = "CHANGE_NAME_UPDATE_NAMES";
+        public const string SIG_BEGIN_UPDATE_NAMES = "CHANGE_NAME_BEGIN_UPDATE_NAMES";
+        public const string SIG_UPDATE_NAME = "CHANGE_NAME_UPDATE_NAME";
+        public const string SIG_END_UPDATE_NAMES = "CHANGE_NAME_END_UPDATE_NAMES";
         public const string SIG_PLAYER_JOIN = "CHANGE_NAME_PLAYER_JOIN";
         public const string SIG_NEW_LEVEL = "CHANGE_NAME_NEW_LEVEL";
 
@@ -95,35 +97,67 @@ namespace ChangeName
 
         internal static void NDNetGetString(string data, string signature)
         {
-            if (signature == SIG_UPDATE_NAMES) {
-                ChangeNamePlugin.LogDebug("[NameDatabase] New names received.");
-                var newNames = DecodeNames(data);
-                ChangeNamePlugin.LogDebug("[NameDatabase] Old Database: " + DictionaryToString(names));
-                ChangeNamePlugin.LogDebug("[NameDatabase] New Database: " + DictionaryToString(newNames));
+            switch (signature)
+            {
+                case SIG_PLAYER_JOIN:
+                case SIG_NEW_ROUND:
+                    if(StartOfRound.Instance.IsHost){
+                        shouldSendNames = true;
+                    }
+                    break;
 
-                // Check if the dictionaries are the same
-                if (!names.SequenceEqual(newNames))
-                {
-                    ChangeNamePlugin.LogDebug("[NameDatabase] NameDatabase out of sync.");
-                    ChangeNamePlugin.LogDebug("[NameDatabase] Old Database: " + DictionaryToString(names));
-                    ChangeNamePlugin.LogDebug("[NameDatabase] New Database: " + DictionaryToString(newNames));
-                    names = newNames;
+                case SIG_BEGIN_UPDATE_NAMES:
+                    ChangeNamePlugin.LogInfo("[NameDatabase] Beginning name update process.");
+                    break;
+
+                case SIG_UPDATE_NAME:
+                    var namePair = DecodeName(data);
+                    if (namePair != null)
+                    {
+                        KeyValuePair<ulong, string> notNullPair = namePair.Value;
+                        ChangeNamePlugin.LogInfo("[NameDatabase] New name received: " + notNullPair.Key.ToString() + " : " + notNullPair.Value);
+                        names[notNullPair.Key] = notNullPair.Value;
+                    }
+                    break;
+
+                case SIG_END_UPDATE_NAMES:
+                    ChangeNamePlugin.LogInfo("[NameDatabase] End of name update process.");
                     shouldUpdateNames = true;
-                }
-            } else if(signature == SIG_PLAYER_JOIN || signature == SIG_NEW_ROUND){
-                if(StartOfRound.Instance.IsHost){
-                    shouldSendNames = true;
-                }
+                    break;
             }
         }
 
         internal static void NDNetSendNames()
         {
-            ChangeNamePlugin.LogDebug("[NameDatabase] Host sending new names..");
-            var encodedNames = EncodeNames(names);
-            Networking.Broadcast(encodedNames, SIG_UPDATE_NAMES);
+            Networking.Broadcast(string.Empty, SIG_BEGIN_UPDATE_NAMES);
+
+            foreach (var pair in names)
+            {
+                var encodedName = EncodeName(pair);
+                Networking.Broadcast(encodedName, SIG_UPDATE_NAME);
+            }
+
+            Networking.Broadcast(string.Empty, SIG_END_UPDATE_NAMES);
         }
 
+        private static string EncodeName(KeyValuePair<ulong, string> namePair)
+        {
+            return $"{namePair.Key}:{namePair.Value}";
+        }
+
+        private static KeyValuePair<ulong, string>? DecodeName(string encoded)
+        {
+            var keyValue = encoded.Split(':');
+            if (keyValue.Length == 2)
+            {
+                ulong key;
+                if (ulong.TryParse(keyValue[0], out key))
+                {
+                    return new KeyValuePair<ulong, string>(key, keyValue[1]);
+                }
+            }
+            return null;
+        }
         private static string EncodeNames(Dictionary<ulong, string> names)
         {
             StringBuilder builder = new StringBuilder();
